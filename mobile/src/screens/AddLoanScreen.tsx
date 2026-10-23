@@ -12,16 +12,20 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../api/client';
+import { DatePicker } from '../components/DatePicker';
 import Colors from '../theme/colors';
 
 export const AddLoanScreen = () => {
   const navigation = useNavigation();
 
-  // Helper for default due date (1 week from today)
+  // Helper for default due date (1 week from today, YYYY-MM-DD)
   const getDefaultDueDate = (): string => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
-    return d.toISOString().split('T')[0];
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   };
 
   const [friendName, setFriendName] = useState('');
@@ -47,7 +51,7 @@ export const AddLoanScreen = () => {
 
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
     if (!datePattern.test(dueDate.trim())) {
-      setErrorMessage('Due date must be in YYYY-MM-DD format.');
+      setErrorMessage('Please select a valid due date.');
       return false;
     }
 
@@ -148,19 +152,16 @@ export const AddLoanScreen = () => {
             />
           </View>
 
-          {/* Due Date */}
+          {/* Due Date with Calendar Picker */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Due Date (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textMuted}
+            <Text style={styles.label}>Due Date</Text>
+            <DatePicker
               value={dueDate}
-              onChangeText={(text) => {
-                setDueDate(text);
+              onChange={(newDate) => {
+                setDueDate(newDate);
                 if (errorMessage) setErrorMessage(null);
               }}
-              editable={!isSubmitting}
+              disabled={isSubmitting}
             />
           </View>
 
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   fieldGroup: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
