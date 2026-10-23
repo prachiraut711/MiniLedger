@@ -1,470 +1,315 @@
-# MiniLedger 💰
+# MiniLedger — Money Lending Tracker
 
-MiniLedger is a simple, lightweight money tracking application for recording loans given to friends. Built as a clean full-stack mobile application, it helps you keep track of who owes you money, how much has been repaid, and what is currently overdue.
+MiniLedger is a simple full-stack mobile application for tracking money lent to friends. It lets users log in using a mock OTP, record loans, monitor due dates, and mark loans as repaid.
 
----
-
-## 📑 Table of Contents
-
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Prerequisites](#-prerequisites)
-- [Step-by-Step Installation & Setup](#-step-by-step-installation--setup)
-  - [1. Backend Setup](#1-backend-setup)
-  - [2. PostgreSQL Database Setup](#2-postgresql-database-setup)
-  - [3. Mobile App Setup](#3-mobile-app-setup)
-- [Configuring the API URL](#-configuring-the-api-url)
-  - [Android Emulator](#android-emulator)
-  - [Physical Android Device (Expo Go)](#physical-android-device-expo-go)
-  - [In-App URL Switcher](#in-app-url-switcher)
-- [How to Use the Mock OTP Flow](#-how-to-use-the-mock-otp-flow)
-- [API Documentation](#-api-documentation)
-- [Running Tests](#-running-tests)
-- [Demo Walkthrough Checklist](#-demo-walkthrough-checklist)
-- [Troubleshooting Common Issues](#-troubleshooting-common-issues)
+This project was built as an internship assignment using React Native, Expo, Node.js, TypeScript, Express, and PostgreSQL.
 
 ---
 
-## ✨ Features
+## Features
 
-- **Phone Number Authentication with Mock OTP**:
-  - Secure login using phone number and mock 6-digit one-time password (OTP).
-  - OTP is printed directly in the backend terminal console.
-  - JWT token generation stored locally in `AsyncStorage`.
-- **Portfolio Summary**:
-  - **Total Lent**: Sum of all loans given out.
-  - **Total Repaid**: Sum of all loans marked as repaid.
-  - **Outstanding Amount**: Total amount pending repayment.
-  - **Overdue Amount**: Highlighted in red, representing unpaid loans whose due date is in the past.
-- **Loan Records Management**:
-  - View all loans ordered by repayment status and due date.
-  - Overdue unpaid loans clearly highlighted with light red cards and red badges.
-  - Repaid loans marked with green badges.
-  - One-tap "Mark as Repaid" action button.
-  - Pull-to-refresh on loans list.
-- **Add Loan**:
-  - Simple entry for friend's name, loan amount, and due date.
-  - Quick-preset chips for due dates (*Tomorrow*, *In 1 Week*, *In 1 Month*, *In 3 Months*).
-  - Client-side and server-side validation.
-- **Data Isolation & Security**:
-  - Every loan is strictly associated with the authenticated user ID.
-  - Users cannot access, view, or modify loans belonging to other users.
+- **Phone number login**: Six-digit mock OTP printed in the backend terminal.
+- **Add loans**: Record a friend's name, loan amount, and repayment due date.
+- **Loan dashboard**: View all loan entries and their repayment status.
+- **Portfolio summary**: See total lent, total repaid, outstanding amount, and overdue amount.
+- **Overdue highlighting**: Identify unpaid loans whose due dates have passed.
+- **Repayment tracking**: Mark an unpaid loan as repaid.
+- **Calendar date picker**: Select the due date using a date picker.
+- **Input validation**: Validate phone numbers, loan amounts, names, and dates.
+- **Persistent storage**: Store users and loans in PostgreSQL.
+- **Authentication**: Protect loan APIs using JWT authentication.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
+
+### Frontend
+- React Native
+- Expo
+- TypeScript
+- React Navigation
+- AsyncStorage
 
 ### Backend
-- **Node.js** (v18+) & **TypeScript**
-- **Express.js**: REST API server
-- **PostgreSQL**: Relational database with SQL schema
-- **pg**: PostgreSQL client library with parameterized queries
-- **jsonwebtoken (JWT)**: Stateless token authentication
-- **dotenv**: Environment variable management
-- **Jest**, **ts-jest**, **Supertest**, **pg-mem**: Automated unit and integration testing
+- Node.js
+- Express.js
+- TypeScript
+- PostgreSQL
+- `pg` PostgreSQL client
+- JWT authentication
 
-### Mobile App
-- **React Native** & **Expo** (SDK 52)
-- **TypeScript**
-- **React Navigation** (Native Stack Navigator)
-- **AsyncStorage**: Persistent local storage for JWT tokens and API endpoint settings
-- Built-in React Native components & `StyleSheet`
+### Testing
+- Jest
+- Supertest
+- `pg-mem` for in-memory database tests
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
-intershala_assignment/
+MiniLedger/
 ├── backend/
+│   ├── scripts/
+│   │   └── initDb.ts
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── db.ts             # PostgreSQL connection pool and query helpers
 │   │   ├── controllers/
-│   │   │   ├── authController.ts # Phone OTP generation & JWT verification
-│   │   │   ├── loanController.ts # Loan CRUD & repayment logic
-│   │   │   └── summaryController.ts # Portfolio aggregation queries
 │   │   ├── middleware/
-│   │   │   └── authMiddleware.ts # JWT Bearer token authentication
 │   │   ├── routes/
-│   │   │   ├── authRoutes.ts     # /api/auth routes
-│   │   │   ├── loanRoutes.ts     # /api/loans routes
-│   │   │   └── summaryRoutes.ts  # /api/summary routes
 │   │   ├── services/
-│   │   │   └── otpStore.ts       # In-memory OTP store with TTL expiration
-│   │   ├── types/
-│   │   │   └── index.ts          # TypeScript interfaces
-│   │   ├── app.ts                # Express application setup & error handling
-│   │   └── server.ts             # HTTP server entry point
-│   ├── tests/                    # Automated Jest test suites
-│   ├── scripts/
-│   │   └── initDb.ts             # Database schema initialization script
-│   ├── schema.sql                # PostgreSQL table definitions and indexes
-│   ├── .env.example              # Sample environment configuration
-│   ├── package.json
-│   └── tsconfig.json
+│   │   ├── app.ts
+│   │   └── server.ts
+│   ├── tests/
+│   ├── schema.sql
+│   ├── .env.example
+│   └── package.json
 ├── mobile/
 │   ├── src/
 │   │   ├── api/
-│   │   │   ├── client.ts         # API fetch wrapper with token injection
-│   │   │   └── config.ts         # Dynamic API endpoint configuration
+│   │   ├── components/
 │   │   ├── context/
-│   │   │   └── AuthContext.tsx   # React Auth Context & session management
 │   │   ├── screens/
-│   │   │   ├── LoginScreen.tsx   # Phone & OTP verification screen
-│   │   │   ├── MainScreen.tsx    # Dashboard with summary & loans list
-│   │   │   └── AddLoanScreen.tsx # New loan entry form
-│   │   ├── theme/
-│   │   │   └── colors.ts         # Color palette & styling constants
-│   │   └── types/
-│   │       └── index.ts          # Mobile TypeScript definitions
-│   ├── App.tsx                   # Root navigation container
-│   ├── app.json                  # Expo app configuration
-│   ├── package.json
-│   └── tsconfig.json
+│   │   └── theme/
+│   ├── App.tsx
+│   └── package.json
 ├── .gitignore
 └── README.md
 ```
 
 ---
 
-## 📋 Prerequisites
+## Prerequisites
 
-Before starting, ensure you have the following installed on your machine:
+Install the following software before running the project:
 
-1. **Node.js** (v18.0 or higher): [https://nodejs.org/](https://nodejs.org/)
-2. **PostgreSQL** (v14 or higher): [https://www.postgresql.org/download/](https://www.postgresql.org/download/)
-3. **Expo Go** app on your physical Android phone (from Google Play Store), OR an **Android Studio Emulator**.
+- [Node.js](https://nodejs.org/) — LTS version recommended.
+- [PostgreSQL](https://www.postgresql.org/download/windows/) — database server.
+- [Git](https://git-scm.com/downloads) — for version control.
+- [Expo Go](https://expo.dev/go) or Android Studio with an Android emulator, if running on Android.
+- A desktop browser can be used to run the Expo web version.
 
 ---
 
-## 🚀 Step-by-Step Installation & Setup
+## Installation and Setup
 
-### 1. Backend Setup
+### 1. Clone the repository
+```bash
+git clone https://github.com/YOUR_USERNAME/MiniLedger.git
+cd MiniLedger
+```
+Replace `YOUR_USERNAME` with the GitHub username of the repository owner.
 
-Open a terminal and navigate to the `backend` folder:
-
+### 2. Install backend dependencies
 ```bash
 cd backend
 npm install
 ```
 
-Create your `.env` configuration file:
+### 3. Configure environment variables
+Copy `backend/.env.example` to `backend/.env`.
 
-```bash
-cp .env.example .env
+On Windows PowerShell:
+```powershell
+Copy-Item .env.example .env
 ```
 
-Your `backend/.env` file should look like this:
-
+Configure the following variables using your local PostgreSQL credentials:
 ```env
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/miniledger
+JWT_SECRET=replace_with_a_long_random_secret
 PORT=5000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/miniledger
-JWT_SECRET=miniledger_dev_secret_key_12345
-JWT_EXPIRES_IN=7d
-OTP_EXPIRY_MINUTES=5
 ```
+Replace `YOUR_PASSWORD` with your PostgreSQL password. Use a private random secret for `JWT_SECRET`.
 
-> **Note**: Update the username, password, host, and port in `DATABASE_URL` to match your local PostgreSQL configuration.
+> **Important:** Never commit `backend/.env` to GitHub. The example file should contain placeholders only.
 
----
+### 4. Create the PostgreSQL database
+1. Start PostgreSQL and open pgAdmin 4.
+2. Connect to your PostgreSQL server.
+3. Right-click **Databases**.
+4. Select **Create** → **Database**.
+5. Name the database `miniledger`.
+6. Save the database.
 
-### 2. PostgreSQL Database Setup
-
-1. Open your PostgreSQL terminal (`psql`) or a GUI tool like pgAdmin / DBeaver:
-
-```sql
-CREATE DATABASE miniledger;
-```
-
-2. Run the automated database initialization script from the `backend/` directory:
-
+### 5. Initialize the database schema
+From the `backend` directory, run:
 ```bash
 npm run db:init
 ```
+This command executes the project's `schema.sql` initialization script and creates the required database tables.
 
-This runs `backend/scripts/initDb.ts` which executes `backend/schema.sql` and creates:
-- `users` table: stores user phone numbers and registration dates.
-- `loans` table: stores loan amounts, friend names, due dates, repayment status, and foreign key to `users`.
-- Indexes on `user_id`, `due_date`, and `is_repaid`.
-
-3. Start the backend development server:
-
+### 6. Start the backend server
+From the `backend` directory:
 ```bash
 npm run dev
 ```
+The backend runs on port 5000 by default.
 
-You will see:
-```text
-============================================================
-🚀 MiniLedger Backend Server is running on port 5000
-📡 Local API URL:    http://localhost:5000/api
-📡 Emulator API URL: http://10.0.2.2:5000/api
-============================================================
-✅ PostgreSQL Database connected successfully!
-```
+Verify the server by opening:
+[http://localhost:5000/api/health](http://localhost:5000/api/health)
 
----
+A successful response should indicate that the MiniLedger API is running.
 
-### 3. Mobile App Setup
+Keep the backend terminal open while using the app.
 
-Open a second terminal window and navigate to the `mobile` folder:
-
-```bash
-cd mobile
+### 7. Install mobile dependencies
+Open a second terminal:
+```powershell
+cd D:\prachi\intershala_assignment\mobile
 npm install
 ```
+When setting up from a cloned repository, use the equivalent path to your local project directory.
 
-Start the Expo development server:
+### 8. Configure the mobile API URL
+The mobile app must be able to reach the backend.
 
+- For the web browser:
+  `http://localhost:5000/api`
+- For the standard Android emulator:
+  `http://10.0.2.2:5000/api`
+- For a physical Android phone using Expo Go:
+  `http://YOUR_COMPUTER_IP:5000/api`
+
+To find your computer's local IP address on Windows, run:
+```powershell
+ipconfig
+```
+Use the IPv4 address of the network adapter connected to the same Wi-Fi as your phone. Ensure Windows Firewall allows the backend connection.
+
+Set the correct URL in the existing mobile API configuration file, `mobile/src/api/config.ts`. Do not expose credentials in the mobile app.
+
+### 9. Start the mobile app
+For the web browser:
+```bash
+npx expo start --web
+```
+
+For Expo Go or an Android emulator:
 ```bash
 npx expo start
 ```
+Scan the QR code with Expo Go, or press `a` to open the app in a configured Android emulator.
 
 ---
 
-## 📱 Configuring the API URL
+## How to Use MiniLedger
 
-Mobile devices cannot access your computer's backend via `localhost`. Use the appropriate host address:
+1. Enter a valid 10-digit Indian mobile number.
+2. Select **Send OTP**.
+3. Read the generated six-digit OTP in the backend terminal.
+4. Enter the OTP and select **Verify OTP**.
+5. View the portfolio summary and loan list.
+6. Select **Add Loan**.
+7. Enter the friend's name and amount, then select a due date using the calendar.
+8. Save the loan and verify that it appears on the dashboard.
+9. Select **Mark as Repaid** to update an unpaid loan.
+10. Log out when finished.
 
-### Android Emulator
-- The Android Emulator routes network traffic to the host machine through `10.0.2.2`.
-- MiniLedger defaults to `http://10.0.2.2:5000/api` on Android automatically!
-
-### Physical Android Device (Expo Go)
-- Ensure your phone and development computer are connected to the **same Wi-Fi network**.
-- Find your computer's local IP address:
-  - **Windows (PowerShell)**: `ipconfig` (look for *IPv4 Address* under Wi-Fi, e.g. `10.46.182.243`)
-  - **macOS / Linux**: `ifconfig` or `ip a`
-- Set the API URL to: `http://<YOUR_COMPUTER_IP>:5000/api` (e.g. `http://10.46.182.243:5000/api`).
-
-### In-App URL Switcher
-On the **Login Screen**, tap **"⚙️ API Base URL"** at the bottom to expand the configuration panel:
-- Tap **"Use Wi-Fi IP"** to immediately switch to your computer's local network IP.
-- Tap **"Emulator Default"** to reset to `10.0.2.2:5000/api`.
-- Or type any custom URL and tap **"Save"**.
+> **Note:** The mock OTP is for development and demonstration only. No SMS is sent. Do not use this authentication flow in a production application without appropriate security measures.
 
 ---
 
-## 🔑 How to Use the Mock OTP Flow
+## API Endpoints
 
-MiniLedger uses an in-memory mock OTP flow designed for quick local evaluation without requiring third-party SMS providers:
+All endpoints use the `/api` prefix.
 
-1. On the mobile app Login screen, enter your phone number (e.g., `9876543210`) and press **"Send OTP"**.
-2. Switch to your **backend terminal window**. You will see:
-   ```text
-   ============================================================
-    [MiniLedger MOCK OTP SERVICE]
-    Phone:    9876543210
-    Mock OTP: 681429
-    Expiry:   5 minutes
-    Enter this 6-digit code in the mobile app.
-   ============================================================
-   ```
-3. Enter the 6-digit code (`681429`) in the mobile app and tap **"Verify & Continue"**.
-4. You are authenticated and navigated directly to your MiniLedger dashboard!
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/health` | Check API health |
+| `POST` | `/api/auth/send-otp` | Request a mock OTP |
+| `POST` | `/api/auth/verify-otp` | Verify OTP and receive a JWT |
+| `GET` | `/api/loans` | Retrieve the authenticated user's loans |
+| `POST` | `/api/loans` | Create a loan entry |
+| `PATCH` | `/api/loans/:id/repay` | Mark a loan as repaid |
+| `GET` | `/api/summary` | Retrieve portfolio totals |
 
----
+Loan and summary endpoints require a valid JWT bearer token.
 
-## 📡 API Documentation
+### Example: Request an OTP
+```http
+POST /api/auth/send-otp
+Content-Type: application/json
 
-Base URL: `http://localhost:5000/api`
+{ "phone": "9876543210" }
+```
+The OTP is printed in the backend terminal.
 
-### 1. Authentication
+### Example: Create a loan
+```http
+POST /api/loans
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
 
-#### Send Mock OTP
-- **Endpoint**: `POST /api/auth/send-otp`
-- **Body**:
-  ```json
-  { "phone": "9876543210" }
-  ```
-- **Response** (`200 OK`):
-  ```json
-  {
-    "success": true,
-    "message": "Mock OTP sent successfully. Please check your backend terminal console for the OTP code.",
-    "phone": "9876543210"
-  }
-  ```
-
-#### Verify OTP & Login
-- **Endpoint**: `POST /api/auth/verify-otp`
-- **Body**:
-  ```json
-  { "phone": "9876543210", "otp": "681429" }
-  ```
-- **Response** (`200 OK`):
-  ```json
-  {
-    "success": true,
-    "token": "eyJhbGciOiJIUzI1NiIsInR5c...",
-    "user": {
-      "id": 1,
-      "phone": "9876543210",
-      "createdAt": "2026-10-23T05:00:00.000Z"
-    }
-  }
-  ```
+{ "friendName": "Rahul", "amount": 1500, "dueDate": "2026-11-06" }
+```
+Use the exact field names and request format implemented by the backend.
 
 ---
 
-### 2. Portfolio Summary
+## Summary Fields
 
-- **Endpoint**: `GET /api/summary`
-- **Headers**: `Authorization: Bearer <token>`
-- **Response** (`200 OK`):
-  ```json
-  {
-    "totalLent": 4500,
-    "totalRepaid": 1500,
-    "overdueAmount": 1000,
-    "outstandingAmount": 3000
-  }
-  ```
+The summary endpoint returns the following metrics:
+- `totalLent`: Sum of all recorded loan amounts.
+- `totalRepaid`: Sum of loan amounts marked as repaid.
+- `outstandingAmount`: Sum of unpaid loan amounts.
+- `overdueAmount`: Sum of unpaid loans past their due dates.
 
 ---
 
-### 3. Loan Entries
+## Testing
 
-#### Create Loan
-- **Endpoint**: `POST /api/loans`
-- **Headers**: `Authorization: Bearer <token>`
-- **Body**:
-  ```json
-  {
-    "friendName": "Rohan Sharma",
-    "amount": 2500,
-    "dueDate": "2026-11-15"
-  }
-  ```
-- **Response** (`201 Created`):
-  ```json
-  {
-    "success": true,
-    "loan": {
-      "id": 1,
-      "userId": 1,
-      "friendName": "Rohan Sharma",
-      "amount": 2500,
-      "dueDate": "2026-11-15",
-      "isRepaid": false,
-      "createdAt": "2026-10-23T05:05:00.000Z"
-    }
-  }
-  ```
-
-#### List User's Loans
-- **Endpoint**: `GET /api/loans`
-- **Headers**: `Authorization: Bearer <token>`
-- **Response** (`200 OK`):
-  ```json
-  {
-    "loans": [
-      {
-        "id": 1,
-        "userId": 1,
-        "friendName": "Rohan Sharma",
-        "amount": 2500,
-        "dueDate": "2026-11-15",
-        "isRepaid": false,
-        "createdAt": "2026-10-23T05:05:00.000Z"
-      }
-    ]
-  }
-  ```
-
-#### Mark Loan as Repaid
-- **Endpoint**: `PATCH /api/loans/:id/repay`
-- **Headers**: `Authorization: Bearer <token>`
-- **Response** (`200 OK`):
-  ```json
-  {
-    "success": true,
-    "message": "Loan successfully marked as repaid",
-    "loan": {
-      "id": 1,
-      "userId": 1,
-      "friendName": "Rohan Sharma",
-      "amount": 2500,
-      "dueDate": "2026-11-15",
-      "isRepaid": true,
-      "createdAt": "2026-10-23T05:05:00.000Z"
-    }
-  }
-  ```
-
----
-
-## 🧪 Running Tests
-
-The backend includes automated unit and integration tests powered by Jest and `pg-mem` (an in-memory PostgreSQL emulator) so tests run without depending on external services.
-
-Run the test suite from the `backend/` directory:
-
+Run backend tests:
 ```bash
 cd backend
 npm test
 ```
 
-Test coverage includes:
-- **Authentication**: Input validation, mock OTP generation, verification, and replay protection.
-- **Loan CRUD**: Validation (positive amounts, required fields), creation, list retrieval.
-- **User Isolation**: Verifies User A cannot access or modify User B's loans.
-- **Summary Calculations**: Verifies correct mathematical aggregations for Total Lent, Total Repaid, Outstanding, and Overdue amounts.
-- **Database Availability**: Verifies that when PostgreSQL is unreachable, the API returns a friendly `503 Service Unavailable` response.
+Build the backend TypeScript code:
+```bash
+npm run build
+```
+
+Check mobile TypeScript:
+```bash
+cd mobile
+npx tsc --noEmit
+```
+
+Optional: verify the Expo web bundle:
+```bash
+npx expo export -p web
+```
+
+These commands check different parts of the project. A successful build does not replace testing the app against a running PostgreSQL database.
 
 ---
 
-## 🎥 Demo Walkthrough Checklist
+## Demo Recording Checklist
 
-Use this checklist when recording a demo video:
+Before recording:
+1. Start PostgreSQL.
+2. Start the backend server.
+3. Start the Expo app.
+4. Log in with a test phone number.
+5. Add a loan and show the updated summary.
+6. Demonstrate an overdue entry if available.
+7. Mark a loan as repaid and show the updated totals.
+8. Show logout and the login screen.
 
-1. **Backend Startup**:
-   - Start backend terminal: `npm run dev`
-   - Notice the server running on port 5000.
-2. **Mobile Startup**:
-   - Start Expo terminal: `npx expo start`
-   - Open Expo Go on your phone or Android Emulator.
-3. **Authentication**:
-   - Enter your phone number (e.g. `9876543210`) and press **Send OTP**.
-   - Show the 6-digit OTP printed in the backend terminal.
-   - Enter the OTP in the app and press **Verify & Continue**.
-4. **Empty State & Dashboard**:
-   - Show empty portfolio summary card (`₹0` across all metrics).
-   - Show the friendly empty state message.
-5. **Add Loans**:
-   - Tap **"+ Add Loan"**.
-   - Add Loan 1: Friend: `Aman`, Amount: `2000`, Due Date: Select **In 1 Week**.
-   - Tap **"+ Add Loan"** again.
-   - Add Loan 2 (Overdue): Friend: `Kunal`, Amount: `1500`, Due Date: Enter past date (e.g. `2026-01-01`).
-6. **Inspect Dashboard Highlights**:
-   - Note the **Overdue Amount** card is highlighted in red with Kunal's overdue loan.
-   - Note Kunal's card has a red **⚠️ Overdue** badge.
-   - Note Aman's card has an amber **⏳ Pending** badge.
-7. **Repay a Loan**:
-   - Tap **"Mark as Repaid"** on Kunal's loan and confirm.
-   - Notice Kunal's status changes to green **✓ Repaid**.
-   - Notice the **Total Repaid** updates and **Overdue Amount** drops to `₹0`.
-8. **Log Out**:
-   - Tap **"Log Out"** in the top bar to return to the sign-in screen.
+Keep personal phone numbers, credentials, and database secrets out of the recording.
 
 ---
 
-## 🔧 Troubleshooting Common Issues
+## Limitations
 
-### 1. "Unable to reach backend at http://..."
-- **Android Emulator**: Verify that the API URL is set to `http://10.0.2.2:5000/api` (not `localhost`).
-- **Physical Phone**: Verify that both your phone and PC are on the same Wi-Fi network, and that Windows Defender / Firewall allows incoming connections on port 5000.
-- Use the in-app API URL config on the Login Screen to test and verify the IP address.
+- OTP delivery is mocked; no SMS provider is integrated.
+- The app requires a configured PostgreSQL database.
+- The project is intended for development and internship demonstration, not production financial recordkeeping.
 
-### 2. "Database is unavailable" (HTTP 503)
-- Ensure PostgreSQL is installed and running on your system (`psql -U postgres`).
-- Verify that the database `miniledger` exists (`CREATE DATABASE miniledger;`).
-- Check that `DATABASE_URL` in `backend/.env` contains the correct username and password.
-- Run `npm run db:init` in `backend/` to ensure tables are created.
+---
 
-### 3. "Invalid or expired OTP"
-- The mock OTP expires after 5 minutes.
-- Check the backend terminal for the latest OTP code.
-- If needed, tap "← Change Phone Number" to request a fresh OTP.
+## Author
+
+Developed as an internship assignment.  
+GitHub: [https://github.com/YOUR_USERNAME/MiniLedger](https://github.com/YOUR_USERNAME/MiniLedger)
