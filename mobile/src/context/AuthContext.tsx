@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import { getStoredToken, getStoredUser, setAuthToken, setStoredUser } from '../api/client';
+import { getStoredToken, getStoredUser, setAuthToken, setStoredUser, clearAuthStorage } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
@@ -26,9 +26,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(storedUser);
+        } else {
+          setToken(null);
+          setUser(null);
         }
       } catch (e) {
         console.warn('Failed to restore auth session:', e);
+        setToken(null);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -45,8 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    await setAuthToken(null);
-    await setStoredUser(null);
+    await clearAuthStorage();
     setToken(null);
     setUser(null);
   };

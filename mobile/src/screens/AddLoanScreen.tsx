@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../api/client';
@@ -18,45 +17,43 @@ import Colors from '../theme/colors';
 export const AddLoanScreen = () => {
   const navigation = useNavigation();
 
-  // Helper to format Date to YYYY-MM-DD
-  const formatDateString = (date: Date): string => {
-    return date.toISOString().split('T')[0];
-  };
-
-  // Helper to get date plus N days
-  const getDateOffset = (days: number): string => {
+  // Helper for default due date (1 week from today)
+  const getDefaultDueDate = (): string => {
     const d = new Date();
-    d.setDate(d.getDate() + days);
-    return formatDateString(d);
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
   };
 
   const [friendName, setFriendName] = useState('');
   const [amount, setAmount] = useState('');
-  const [dueDate, setDueDate] = useState(getDateOffset(7)); // Default 1 week from today
-  const [loading, setLoading] = useState(false);
+  const [dueDate, setDueDate] = useState(getDefaultDueDate());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const validateInputs = (): boolean => {
+  // Ref lock to guarantee single submission even if rapid clicks occur
+  const isSubmittingRef = useRef(false);
+
+  const validate = (): boolean => {
     if (!friendName.trim()) {
-      setErrorMessage('Please enter your friend\'s name.');
+      setErrorMessage('Please enter a friend name.');
       return false;
     }
 
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setErrorMessage('Please enter a valid loan amount greater than ₹0.');
+      setErrorMessage('Please enter a valid amount greater than 0.');
       return false;
     }
 
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
     if (!datePattern.test(dueDate.trim())) {
-      setErrorMessage('Due date must be in YYYY-MM-DD format (e.g. 2026-12-31).');
+      setErrorMessage('Due date must be in YYYY-MM-DD format.');
       return false;
     }
 
     const testDate = new Date(dueDate.trim());
     if (isNaN(testDate.getTime())) {
-      setErrorMessage('Due date is not a valid calendar date.');
+      setErrorMessage('Due date is not a valid date.');
       return false;
     }
 
@@ -64,10 +61,17 @@ export const AddLoanScreen = () => {
     return true;
   };
 
-  const handleSubmit = async () => {
-    if (!validateInputs()) return;
+  const handleSaveLoan = async () => {
+    if (isSubmittingRef.current || isSubmitting) {
+      return;
+    }
 
-    setLoading(true);
+    if (!validate()) {
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
@@ -77,17 +81,18 @@ export const AddLoanScreen = () => {
         dueDate: dueDate.trim(),
       });
 
-      Alert.alert('Success', `Loan for ${friendName.trim()} created successfully!`, [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      // On success, close form and return to dashboard
+      navigation.goBack();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to create loan. Please try again.');
-    } finally {
-      setLoading(false);
+      // Do not close form on failure; display error message
+      setErrorMessage(err.message || 'Failed to save loan. Please try again.');
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
+  };
+
+  const handleCancel = () => {
+    navigation.goBack();
   };
 
   return (
@@ -100,45 +105,38 @@ export const AddLoanScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          <Text style={styles.title}>New Loan Entry</Text>
-          <Text style={styles.subtitle}>
-            Record money you have lent to a friend or contact.
-          </Text>
+          <Text style={styles.title}>Add Loan</Text>
 
-          {/* Error Message Banner */}
+          {/* Error Banner */}
           {errorMessage ? (
-            <View style={styles.errorBanner}>
+            <View style={styles.errorBox}>
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           ) : null}
 
-          {/* Friend Name Field */}
+          {/* Friend Name */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>
-              Friend's Name <Text style={styles.required}>*</Text>
-            </Text>
+            <Text style={styles.label}>Friend Name</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Rahul Sharma"
+              placeholder="e.g. Rahul"
               placeholderTextColor={Colors.textMuted}
               value={friendName}
               onChangeText={(text) => {
                 setFriendName(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              editable={!loading}
+              editable={!isSubmitting}
               autoFocus
             />
           </View>
 
-          {/* Amount Field */}
+          {/* Amount */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>
-              Amount (₹) <Text style={styles.required}>*</Text>
-            </Text>
+            <Text style={styles.label}>Amount</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. 1500"
+              placeholder="e.g. 500"
               placeholderTextColor={Colors.textMuted}
               keyboardType="decimal-pad"
               value={amount}
@@ -146,15 +144,13 @@ export const AddLoanScreen = () => {
                 setAmount(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              editable={!loading}
+              editable={!isSubmitting}
             />
           </View>
 
-          {/* Due Date Field */}
+          {/* Due Date */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>
-              Repayment Due Date (YYYY-MM-DD) <Text style={styles.required}>*</Text>
-            </Text>
+            <Text style={styles.label}>Due Date (YYYY-MM-DD)</Text>
             <TextInput
               style={styles.input}
               placeholder="YYYY-MM-DD"
@@ -164,57 +160,28 @@ export const AddLoanScreen = () => {
                 setDueDate(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              editable={!loading}
+              editable={!isSubmitting}
             />
-
-            {/* Quick date presets */}
-            <Text style={styles.presetLabel}>Quick Presets:</Text>
-            <View style={styles.presetRow}>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() => setDueDate(getDateOffset(1))}
-              >
-                <Text style={styles.presetChipText}>Tomorrow</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() => setDueDate(getDateOffset(7))}
-              >
-                <Text style={styles.presetChipText}>In 1 Week</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() => setDueDate(getDateOffset(30))}
-              >
-                <Text style={styles.presetChipText}>In 1 Month</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() => setDueDate(getDateOffset(90))}
-              >
-                <Text style={styles.presetChipText}>In 3 Months</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
-          {/* Actions */}
+          {/* Buttons: Save Loan & Cancel */}
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}
+            style={[styles.saveButton, isSubmitting && styles.buttonDisabled]}
+            onPress={handleSaveLoan}
+            disabled={isSubmitting}
             activeOpacity={0.8}
           >
-            {loading ? (
-              <ActivityIndicator color={Colors.textLight} />
+            {isSubmitting ? (
+              <ActivityIndicator color={Colors.textLight} size="small" />
             ) : (
-              <Text style={styles.submitButtonText}>Add Loan</Text>
+              <Text style={styles.saveButtonText}>Save Loan</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
-            disabled={loading}
+            onPress={handleCancel}
+            disabled={isSubmitting}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -231,120 +198,79 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 20,
     justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   card: {
+    width: '100%',
+    maxWidth: 420,
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 24,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 18,
   },
-  subtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 20,
-  },
-  errorBanner: {
+  errorBox: {
     backgroundColor: Colors.dangerBg,
     borderColor: Colors.dangerBorder,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 14,
   },
   errorText: {
     color: Colors.danger,
     fontSize: 13,
-    fontWeight: '500',
   },
   fieldGroup: {
-    marginBottom: 18,
+    marginBottom: 14,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: Colors.textPrimary,
-    marginBottom: 8,
-  },
-  required: {
-    color: Colors.danger,
+    marginBottom: 6,
   },
   input: {
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
     color: Colors.textPrimary,
   },
-  presetLabel: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  presetRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  presetChip: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  presetChipText: {
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  submitButton: {
+  saveButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  submitButtonText: {
+  saveButtonText: {
     color: Colors.textLight,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
   buttonDisabled: {
-    opacity: 0.65,
+    opacity: 0.6,
   },
   cancelButton: {
-    marginTop: 12,
+    marginTop: 10,
     alignItems: 'center',
     paddingVertical: 8,
   },
   cancelButtonText: {
     color: Colors.textSecondary,
     fontSize: 14,
-    fontWeight: '500',
   },
 });

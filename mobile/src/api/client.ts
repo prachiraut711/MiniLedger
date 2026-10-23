@@ -10,9 +10,23 @@ let memoryToken: string | null = null;
 export const setAuthToken = async (token: string | null): Promise<void> => {
   memoryToken = token;
   if (token) {
-    await AsyncStorage.setItem(TOKEN_STORAGE_KEY, token);
+    try {
+      await AsyncStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } catch (_) {}
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      } catch (_) {}
+    }
   } else {
-    await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+    try {
+      await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+    } catch (_) {}
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      } catch (_) {}
+    }
   }
 };
 
@@ -20,28 +34,66 @@ export const getStoredToken = async (): Promise<string | null> => {
   if (memoryToken) return memoryToken;
   try {
     const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-    memoryToken = token;
-    return token;
-  } catch (err) {
-    return null;
+    if (token) {
+      memoryToken = token;
+      return token;
+    }
+  } catch (err) {}
+
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const webToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (webToken) {
+        memoryToken = webToken;
+        return webToken;
+      }
+    } catch (_) {}
   }
+  return null;
 };
 
 export const setStoredUser = async (user: User | null): Promise<void> => {
   if (user) {
-    await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    const raw = JSON.stringify(user);
+    try {
+      await AsyncStorage.setItem(USER_STORAGE_KEY, raw);
+    } catch (_) {}
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(USER_STORAGE_KEY, raw);
+      } catch (_) {}
+    }
   } else {
-    await AsyncStorage.removeItem(USER_STORAGE_KEY);
+    try {
+      await AsyncStorage.removeItem(USER_STORAGE_KEY);
+    } catch (_) {}
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(USER_STORAGE_KEY);
+      } catch (_) {}
+    }
   }
 };
 
 export const getStoredUser = async (): Promise<User | null> => {
   try {
     const raw = await AsyncStorage.getItem(USER_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (err) {
-    return null;
+    if (raw) return JSON.parse(raw);
+  } catch (err) {}
+
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const webRaw = window.localStorage.getItem(USER_STORAGE_KEY);
+      if (webRaw) return JSON.parse(webRaw);
+    } catch (_) {}
   }
+  return null;
+};
+
+export const clearAuthStorage = async (): Promise<void> => {
+  memoryToken = null;
+  await setAuthToken(null);
+  await setStoredUser(null);
 };
 
 /**
