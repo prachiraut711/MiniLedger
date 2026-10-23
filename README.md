@@ -312,4 +312,4 @@ Keep personal phone numbers, credentials, and database secrets out of the record
 ## Author
 
 Developed as an internship assignment.  
-GitHub: [https://github.com/YOUR_USERNAME/MiniLedger](https://github.com/YOUR_USERNAME/MiniLedger)
+GitHub: https://github.com/prachiraut711/MiniLedger
