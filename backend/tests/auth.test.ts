@@ -2,6 +2,14 @@ import request from 'supertest';
 import { createApp } from '../src/app';
 import { setupTestDb } from './setupTestDb';
 import { otpStore } from '../src/services/otpStore';
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from '@jest/globals';
 
 const app = createApp();
 
